@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - CyberSec Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; }
+        .item-card { background: #1e293b; border: 1px solid #334155; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; }
+        input, textarea { background: #0f172a !important; border: 1px solid #334155 !important; color: white !important; padding: 0.5rem; border-radius: 0.375rem; width: 100%; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+    <div class="max-w-5xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-400">Gerenciador de Conteúdo</h1>
+            <div class="space-x-4">
+                <button onclick="loadIndexFile()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold transition">Abrir index.html</button>
+                <button id="btnSave" onclick="saveChanges()" disabled class="bg-green-600 disabled:opacity-50 hover:bg-green-500 px-6 py-2 rounded-lg font-bold transition">Salvar Alterações</button>
+            </div>
+        </div>
+
+        <div id="editor" class="hidden space-y-12">
+            <!-- Seção Membros -->
+            <section>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold border-l-4 border-blue-500 pl-4 uppercase">Membros</h2>
+                    <button onclick="addMember()" class="text-sm bg-slate-700 px-3 py-1 rounded hover:bg-slate-600">+ Novo</button>
+                </div>
+                <div id="members-list"></div>
+            </section>
+
+            <!-- Seção Projetos -->
+            <section>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold border-l-4 border-green-500 pl-4 uppercase">Projetos</h2>
+                    <button onclick="addProject()" class="text-sm bg-slate-700 px-3 py-1 rounded hover:bg-slate-600">+ Novo</button>
+                </div>
+                <div id="projects-list"></div>
+            </section>
+
+            <!-- Seção Eventos -->
+            <section>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold border-l-4 border-purple-500 pl-4 uppercase">Eventos</h2>
+                    <button onclick="addEvent()" class="text-sm bg-slate-700 px-3 py-1 rounded hover:bg-slate-600">+ Novo</button>
+                </div>
+                <div id="events-list"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        let fileHandle;
+        let indexDoc;
+
+        async function loadIndexFile() {
+            try {
+                [fileHandle] = await window.showOpenFilePicker({
+                    types: [{ description: 'HTML Files', accept: { 'text/html': ['.html'] } }],
+                    multiple: false
+                });
+                const file = await fileHandle.getFile();
+                const content = await file.text();
+                const parser = new DOMParser();
+                indexDoc = parser.parseFromString(content, 'text/html');
+
+                renderEditor();
+                document.getElementById('editor').classList.remove('hidden');
+                document.getElementById('btnSave').disabled = false;
+            } catch (err) { console.error('Erro ao abrir arquivo:', err); }
+        }
+
+        function renderEditor() {
+            // Render Membros
+            const membersList = document.getElementById('members-list');
+            membersList.innerHTML = '';
+            indexDoc.querySelectorAll('#lista-membros-atuais > div').forEach((el, idx) => {
+                const nome = el.querySelector('h3')?.innerText || '';
+                const foto = el.querySelector('img')?.getAttribute('src') || '';
+                const linkedin = el.querySelector('a[href*="linkedin"]')?.getAttribute('href') || '#';
+                const github = el.querySelector('a[href*="github"]')?.getAttribute('href') || '#';
+
+                membersList.innerHTML += createItemCard('member', idx, { nome, foto, linkedin, github });
+            });
+
+            // Render Projetos
+            const projectsList = document.getElementById('projects-list');
+            projectsList.innerHTML = '';
+            indexDoc.querySelectorAll('#grid-projetos > div').forEach((el, idx) => {
+                const titulo = el.querySelector('h3')?.innerText || '';
+                const desc = el.querySelector('p')?.innerText || '';
+                const img = el.querySelector('img')?.getAttribute('src') || '';
+                projectsList.innerHTML += createItemCard('project', idx, { titulo, desc, img });
+            });
+
+            // Render Eventos
+            const eventsList = document.getElementById('events-list');
+            eventsList.innerHTML = '';
+            indexDoc.querySelectorAll('#eventos-carousel .slides').forEach((el, idx) => {
+                const titulo = el.querySelector('h3')?.innerText || '';
+                const data = el.querySelector('span')?.innerText || '';
+                const desc = el.querySelector('p')?.innerText || '';
+                const bg = el.querySelector('img')?.getAttribute('src') || '';
+                const link = el.querySelector('a')?.getAttribute('href') || '#';
+                const btnText = el.querySelector('a')?.innerText || 'Participar';
+                eventsList.innerHTML += createItemCard('event', idx, { titulo, data, desc, bg, link, btnText });
+            });
+        }
+
+        function createItemCard(type, id, data) {
+            if (type === 'member') {
+                return `<div class="item-card flex gap-4" data-type="member">
+                    <div class="flex-1 space-y-2">
+                        <input type="text" value="${data.nome}" placeholder="Nome" class="f-nome">
+                        <input type="text" value="${data.foto}" placeholder="Caminho da Foto" class="f-foto">
+                        <div class="flex gap-2">
+                            <input type="text" value="${data.linkedin}" placeholder="LinkedIn" class="f-li">
+                            <input type="text" value="${data.github}" placeholder="GitHub" class="f-gh">
+                        </div>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-red-500 px-4 font-bold">EXCLUIR</button>
+                </div>`;
+            }
+            if (type === 'project') {
+                return `<div class="item-card flex gap-4" data-type="project">
+                    <div class="flex-1 space-y-2">
+                        <input type="text" value="${data.titulo}" placeholder="Título" class="f-titulo">
+                        <textarea placeholder="Descrição" class="f-desc">${data.desc}</textarea>
+                        <input type="text" value="${data.img}" placeholder="Caminho da Imagem" class="f-img">
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-red-500 px-4 font-bold">EXCLUIR</button>
+                </div>`;
+            }
+            if (type === 'event') {
+                return `<div class="item-card flex gap-4" data-type="event">
+                    <div class="flex-1 space-y-2">
+                        <div class="flex gap-2"><input type="text" value="${data.titulo}" placeholder="Título" class="f-titulo"><input type="text" value="${data.data}" placeholder="Data" class="f-data"></div>
+                        <textarea placeholder="Descrição" class="f-desc">${data.desc}</textarea>
+                        <div class="flex gap-2"><input type="text" value="${data.bg}" placeholder="Banner Background" class="f-bg"><input type="text" value="${data.link}" placeholder="Link" class="f-link"><input type="text" value="${data.btnText}" placeholder="Texto Botão" class="f-btnText"></div>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-red-500 px-4 font-bold">EXCLUIR</button>
+                </div>`;
+            }
+        }
+
+        function addMember() { document.getElementById('members-list').insertAdjacentHTML('beforeend', createItemCard('member', Date.now(), {nome:'', foto:'', linkedin:'', github:''})); }
+        function addProject() { document.getElementById('projects-list').insertAdjacentHTML('beforeend', createItemCard('project', Date.now(), {titulo:'', desc:'', img:''})); }
+        function addEvent() { document.getElementById('events-list').insertAdjacentHTML('beforeend', createItemCard('event', Date.now(), {titulo:'', data:'', desc:'', bg:'', link:'', btnText:'Participar'})); }
+
+        async function saveChanges() {
+            // 1. Atualizar Membros no indexDoc
+            const mContainer = indexDoc.getElementById('lista-membros-atuais');
+            mContainer.innerHTML = '';
+            document.querySelectorAll('#members-list > div').forEach(card => {
+                const nome = card.querySelector('.f-nome').value;
+                const foto = card.querySelector('.f-foto').value;
+                const li = card.querySelector('.f-li').value;
+                const gh = card.querySelector('.f-gh').value;
+                mContainer.innerHTML += `
+                <div class="relative group h-[200px] w-full overflow-hidden rounded-2xl bg-gray-900 border border-gray-800 hover:border-blue-500 transition-all duration-500">
+                    <div class="absolute inset-0"><img src="${foto}" class="h-full w-full object-cover opacity-70 group-hover:opacity-100 transition-all"><div class="absolute inset-0 bg-gradient-to-t from-gray-950 to-transparent"></div></div>
+                    <div class="absolute bottom-0 p-1 w-full flex flex-col items-center text-center translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                        <h3 class="font-bold text-white">${nome}</h3>
+                        <div class="flex gap-4 mt-1 opacity-0 group-hover:opacity-100 transition-all">
+                            <a href="${li}" target="_blank" class="text-gray-300 hover:text-blue-400"><i class="fa-brands fa-linkedin fa-lg"></i></a>
+                            <a href="${gh}" target="_blank" class="text-gray-300 hover:text-blue-400"><i class="fa-brands fa-square-github fa-lg"></i></a>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            // 2. Atualizar Projetos
+            const pContainer = indexDoc.getElementById('grid-projetos');
+            pContainer.innerHTML = '';
+            document.querySelectorAll('#projects-list > div').forEach(card => {
+                const t = card.querySelector('.f-titulo').value;
+                const d = card.querySelector('.f-desc').value;
+                const i = card.querySelector('.f-img').value;
+                pContainer.innerHTML += `
+                <div class="card rounded-2xl shadow-xl transform hover:scale-105 transition duration-300 border-b-4">
+                    <img src="${i}" alt="${t}" class="rounded-xl mb-6 w-full object-cover h-48" onerror="this.src='https://placehold.co/400x250?text=Logo'" />
+                    <h3 class="pl-4 text-xl font-semibold text-white">${t}</h3>
+                    <p class="p-4 leading-relaxed">${d}</p>
+                </div>`;
+            });
+
+            // 3. Atualizar Eventos
+            const eContainer = indexDoc.getElementById('eventos-carousel');
+            eContainer.innerHTML = '';
+            document.querySelectorAll('#events-list > div').forEach(card => {
+                const t = card.querySelector('.f-titulo').value;
+                const d = card.querySelector('.f-data').value;
+                const desc = card.querySelector('.f-desc').value;
+                const bg = card.querySelector('.f-bg').value;
+                const l = card.querySelector('.f-link').value;
+                const bt = card.querySelector('.f-btnText').value;
+                eContainer.innerHTML += `
+                <div class="slides relative min-w-[60vw] h-[400px] overflow-hidden rounded-3xl group">
+                    <img src="${bg}" class="slide-img w-full h-full object-cover" />
+                    <div class="absolute inset-0 flex flex-col justify-end items-start p-8 bg-gradient-to-t from-black/90 via-black/20 to-transparent">
+                        <div class="event-card-glass p-5 max-w-lg relative text-left">
+                            <span class="bg-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 inline-block">${d}</span>
+                            <h3 class="text-2xl font-bold text-white mb-1">${t}</h3>
+                            <p class="text-gray-300 mb-3 text-sm leading-relaxed">${desc}</p>
+                            <a href="${l}" class="inline-block px-6 py-2 bg-blue-600 text-white text-sm rounded-full font-bold hover:bg-blue-500 transform hover:scale-105 transition-all">${bt}</a>
+                            <div class="absolute bottom-4 right-4 w-10 h-10 flex items-center justify-center pointer-events-none timer-container">
+                                <svg class="w-full h-full transform -rotate-90">
+                                    <circle cx="20" cy="20" r="15" stroke="rgba(255,255,255,0.1)" stroke-width="2" fill="transparent" />
+                                    <circle class="timer-donut" cx="20" cy="20" r="15" stroke="var(--color-light-blue)" stroke-width="2" fill="transparent" stroke-dasharray="94.2" stroke-dashoffset="94.2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            // Salvar no arquivo
+            try {
+                const writable = await fileHandle.createWritable();
+                await writable.write('<!DOCTYPE html>\n' + indexDoc.documentElement.outerHTML);
+                await writable.close();
+                alert('Arquivo index.html atualizado com sucesso!');
+            } catch (err) { alert('Erro ao salvar: ' + err.message); }
+        }
+    </script>
+</body>
+</html>
